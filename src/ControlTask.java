@@ -1,28 +1,34 @@
 public class ControlTask implements Runnable {
 
-    private final boolean[] stopFlags;
+    private volatile boolean[] stopFlags;
     private final int[] timeDelay;
-    private final Object consoleLock;
 
-    public ControlTask(boolean[] stopFlags, int[] timeDelay, Object consoleLock) {
+    public ControlTask(boolean[] stopFlags, int[] timeDelay) {
         this.stopFlags = stopFlags;
         this.timeDelay = timeDelay;
-        this.consoleLock = consoleLock;
     }
 
     @Override
     public void run() {
-        for (int i = 0; i < stopFlags.length; i++) {
-            int id = i;
-            new Thread(() -> {
-                try {
-                    Thread.sleep(timeDelay[id]);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+        int n = stopFlags.length;
+        boolean[] stopped = new boolean[n];
+        int stoppedCount = 0;
 
-                stopFlags[id] = true;
-            }).start();
+        long startTime = System.currentTimeMillis();
+
+        while (stoppedCount < n) {
+            long elapsed = System.currentTimeMillis() - startTime;
+
+            for (int i = 0; i < n; i++) {
+                if (!stopped[i] && elapsed >= timeDelay[i]) {
+                    stopFlags[i] = true;
+                    stopped[i] = true;
+                    stoppedCount++;
+
+                    System.out.println("Контролер зупинив потік " + (i + 1) +
+                            " (delay = " + timeDelay[i] + " мс)");
+                }
+            }
         }
     }
 }
